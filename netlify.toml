@@ -3,8 +3,8 @@
   publish = "dist"
 
 # Prevent Python backend folder from triggering Python installation
-[build.ignore]
-  files = ["Backend/**"]
+ignore = "git diff --quiet HEAD^ HEAD Backend/"
+
 
 [build.environment]
   NODE_VERSION = "18"
