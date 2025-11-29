@@ -21,6 +21,7 @@ from dotenv import load_dotenv
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from urllib.parse import urlparse
+import sqlite3
 
 load_dotenv()
 
@@ -139,13 +140,26 @@ def allowed_file(filename: str, allowed_extensions: set) -> bool:
 def parse_database_url(db_url: str) -> dict:
     """Parse DATABASE_URL and return connection parameters for psycopg2"""
     parsed = urlparse(db_url)
-    
+    # Support only PostgreSQL connection URLs for psycopg2 in production.
+    # Provide clear error messages if the URL is malformed (for e.g. missing port)
+    if parsed.scheme in ('sqlite', 'sqlite3'):
+        return {'scheme': 'sqlite', 'path': parsed.path or db_url.replace('sqlite:///', '')}
+
     if parsed.scheme not in ('postgresql', 'postgres'):
         raise ValueError(f"DATABASE_URL must use postgresql:// scheme, got: {parsed.scheme}")
-    
+
+    # parsed.port may be None or a non-numeric string if environment is misconfigured
+    if not parsed.port:
+        raise ValueError('DATABASE_URL is missing port component (e.g. :5432)')
+
+    try:
+        port_int = int(parsed.port)
+    except Exception:
+        raise ValueError(f"Port could not be cast to integer value as '{parsed.port}'")
+
     return {
         'host': parsed.hostname or 'localhost',
-        'port': int(parsed.port) if parsed.port else 5432,
+        'port': port_int,
         'database': parsed.path.lstrip('/') if parsed.path else 'postgres',
         'user': parsed.username or 'postgres',
         'password': parsed.password or ''
@@ -160,6 +174,39 @@ def get_db():
     except psycopg2.OperationalError as e:
         logger.error(f"Database connection failed: {e}")
         raise
+
+def check_database_ready() -> tuple:
+    """Return (ok, message). Validate DATABASE_URL presence and port for PostgreSQL.
+    This is used to produce a friendlier error message instead of raising deep
+    psycopg2/urlparse errors that bubble up to the route handlers.
+    """
+    db_url = os.getenv('DATABASE_URL', '')
+    if not db_url:
+        return False, 'DATABASE_URL is not set'
+
+    try:
+        parsed = parse_database_url(db_url)
+        # If parse_database_url returns a dict containing scheme sqlite, treat as not ready
+        if parsed.get('scheme') == 'sqlite':
+            return False, 'DATABASE_URL points to sqlite; please configure a PostgreSQL DATABASE_URL for production'
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
+# Ensure CORS headers are present on all responses (including errors)
+@app.after_request
+def add_cors_headers(response):
+    origin = request.headers.get('Origin')
+    try:
+        if origin and origin in allowed_origins:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    except Exception:
+        # Do not allow CORS header logic to break the response
+        pass
+    return response
 
 def init_database():
     """Initialize enhanced database schema"""
@@ -443,6 +490,12 @@ def register():
     start_time = time.time()
     
     try:
+        # Validate DB configuration early and return a helpful error if misconfigured
+        db_ok, db_msg = check_database_ready()
+        if not db_ok:
+            logger.error(f"Registration blocked: {db_msg}")
+            # Use 503 so frontend sees a server-side configuration issue
+            return jsonify({'error': 'Database configuration error', 'detail': db_msg}), 503
         # Extract form data
         username = request.form.get('username')
         email = request.form.get('email')
@@ -1333,6 +1386,28 @@ def debug_async_listener():
     Returns a simple JSON so you can test if errors are from your code or browser extensions.
     """
     return jsonify({"status": "ok", "source": "backend"}), 200
+
+
+@app.route('/api/health/db', methods=['GET'])
+def health_check_db():
+    """Lightweight DB health check.
+
+    - Validates `DATABASE_URL` format using `check_database_ready()`.
+    - Attempts a short psycopg2 connection and immediately closes it.
+    Returns 200 when OK or 503 with details on failure.
+    """
+    ok, msg = check_database_ready()
+    if not ok:
+        return jsonify({'status': 'fail', 'detail': msg}), 503
+
+    try:
+        params = parse_database_url(os.getenv('DATABASE_URL'))
+        conn = psycopg2.connect(**params)
+        conn.close()
+        return jsonify({'status': 'ok', 'detail': 'database connected'}), 200
+    except Exception as e:
+        logger.error(f"DB health check failed: {e}")
+        return jsonify({'status': 'fail', 'detail': str(e)}), 503
 
 # --- User Profile and Settings APIs ---
 
