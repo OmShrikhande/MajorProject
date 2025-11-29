@@ -1,0 +1,45 @@
+QUICK SETUP FOR RENDER DEPLOYMENT
+==================================
+
+1. ADD THESE ENVIRONMENT VARIABLES TO RENDER:
+
+   DATABASE_URL=postgresql://[user]:[password]@[host]:5432/[dbname]
+   (Get from Render PostgreSQL dashboard - External Database URL)
+
+   FRONTEND_URL=https://majorpr.netlify.app
+
+   SECRET_KEY=[Generate random string - at least 32 chars]
+
+   JWT_SECRET=[Generate random string - at least 32 chars]
+
+   ALLOWED_ORIGINS=https://majorpr.netlify.app,https://www.majorpr.netlify.app
+
+2. CRITICAL: DATABASE_URL MUST INCLUDE PORT NUMBER
+   ✓ CORRECT: postgresql://user:pass@host.render.com:5432/dbname
+   ✗ WRONG:   postgresql://user:pass@host.render.com/dbname
+
+3. DEPLOY:
+   - Push to git
+   - Render will rebuild automatically
+
+4. CHECK LOGS:
+   - Look for "Database initialized successfully"
+   - Check for "Listening at: http://0.0.0.0:5000"
+
+5. TEST FROM FRONTEND:
+   - Open browser console (F12)
+   - Attempt registration
+   - Check if CORS error is gone
+   - You should see 400/500 errors, not CORS 0 errors
+
+COMMON ERRORS & FIXES:
+======================
+
+Error: "invalid integer value "port" for connection option "port""
+Fix: DATABASE_URL is missing :5432 port number
+
+Error: "CORS policy: No 'Access-Control-Allow-Origin' header"
+Fix: FRONTEND_URL not set correctly, should match your Netlify domain
+
+Error: "psycopg2.OperationalError: could not connect to server"
+Fix: DATABASE_URL credentials are wrong, check username/password
