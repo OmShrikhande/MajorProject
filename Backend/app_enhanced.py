@@ -208,6 +208,18 @@ def add_cors_headers(response):
         pass
     return response
 
+
+def require_db_ready(func):
+    """Decorator to ensure DATABASE_URL is configured and reachable before handling route."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        ok, msg = check_database_ready()
+        if not ok:
+            logger.error(f"Database not ready for request: {msg}")
+            return jsonify({'error': 'Database configuration error', 'detail': msg}), 503
+        return func(*args, **kwargs)
+    return wrapper
+
 def init_database():
     """Initialize enhanced database schema"""
     conn = get_db()
@@ -484,6 +496,7 @@ def verify_session_token(token: str) -> Optional[str]:
 # Enhanced API Routes
 
 @app.route('/api/register', methods=['POST'])
+@require_db_ready
 @limiter.limit(RATE_LIMITS['register'])
 def register():
     """Enhanced user registration with advanced security"""
@@ -644,6 +657,7 @@ def register():
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/auth/face', methods=['POST'])
+@require_db_ready
 @limiter.limit(RATE_LIMITS['auth'])
 def auth_face():
     """Enhanced face authentication with advanced security"""
@@ -786,6 +800,7 @@ def auth_face():
         return jsonify({'error': 'Authentication service error'}), 500
 
 @app.route('/api/auth/fingerprint', methods=['POST'])
+@require_db_ready
 @limiter.limit(RATE_LIMITS['auth'])
 def auth_fingerprint():
     """Enhanced fingerprint authentication"""
@@ -949,6 +964,7 @@ def auth_fingerprint():
         return jsonify({'error': 'Authentication service error'}), 500
 
 @app.route('/api/user/docs', methods=['GET', 'POST', 'DELETE'])
+@require_db_ready
 @limiter.limit(RATE_LIMITS['upload'])
 def user_docs():
     """Enhanced document management with encryption and metadata"""
@@ -1120,6 +1136,7 @@ def user_docs():
         conn.close()
 
 @app.route('/api/user/docs/download', methods=['GET'])
+@require_db_ready
 @limiter.limit(RATE_LIMITS['download'])
 def download_document():
     """Securely download a document"""
@@ -1218,6 +1235,7 @@ def download_document():
         conn.close()
 
 @app.route('/api/security/events', methods=['GET'])
+@require_db_ready
 def get_security_events():
     """Get security events for dashboard"""
     username = request.args.get('username')
@@ -1256,6 +1274,7 @@ def get_security_events():
         conn.close()
 
 @app.route('/api/security/log', methods=['POST'])
+@require_db_ready
 def log_security_event_api():
     """API endpoint for logging security events"""
     try:
@@ -1272,6 +1291,7 @@ def log_security_event_api():
         return jsonify({'error': 'Failed to log event'}), 500
 
 @app.route('/api/analytics/dashboard', methods=['GET'])
+@require_db_ready
 def get_dashboard_analytics():
     """Get analytics data for dashboard"""
     username = request.args.get('username')
@@ -1412,6 +1432,7 @@ def health_check_db():
 # --- User Profile and Settings APIs ---
 
 @app.route('/api/user/profile', methods=['GET', 'PUT'])
+@require_db_ready
 def user_profile():
     username = request.args.get('username') if request.method == 'GET' else request.json.get('username')
     if not username:
@@ -1474,6 +1495,7 @@ def user_profile():
         conn.close()
 
 @app.route('/api/user/settings', methods=['GET', 'PUT'])
+@require_db_ready
 def user_settings():
     username = request.args.get('username') if request.method == 'GET' else request.json.get('username')
     if not username:
@@ -1591,4 +1613,4 @@ if __name__ == '__main__':
                       {'version': '2.0.0-enhanced'}, 'info')
     
     # Run the application
-    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
+    app.run(debug=True, host='0.0.0.0', port=5432, threaded=True)
