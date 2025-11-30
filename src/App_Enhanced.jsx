@@ -426,7 +426,7 @@ export default function App() {
       setAuthResults(response.data);
       setSnackbar({
         open: true,
-        message: `Access granted with ${response.data.confidence.toFixed(1)}% confidence!`,
+        message: `Access granted with ${(response.data.score * 100).toFixed(1)}% match!`,
         severity: "success",
       });
       setActiveStep(0);

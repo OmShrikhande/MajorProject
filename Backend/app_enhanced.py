@@ -198,14 +198,20 @@ def check_database_ready() -> tuple:
 def add_cors_headers(response):
     origin = request.headers.get('Origin')
     try:
-        if origin and origin in allowed_origins:
+        # Prefer echoing the incoming Origin when possible
+        if origin:
             response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        else:
+            # Fallback to configured frontend_url so browsers receive a header
+            response.headers['Access-Control-Allow-Origin'] = frontend_url
+
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
     except Exception:
         # Do not allow CORS header logic to break the response
         pass
+
     return response
 
 
@@ -549,18 +555,56 @@ def register():
             if not allowed_file(face_file.filename, ALLOWED_IMAGE_EXTENSIONS):
                 return jsonify({'error': 'Invalid face image file type'}), 400
         
-        # Check if user already exists
+        # Check if user already exists. Query both username and email so we can
+        # record which specific field caused the conflict in server logs (DO NOT
+        # expose that detail to the client).
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute('SELECT id FROM users WHERE username = %s OR email = %s', 
+        cursor.execute('SELECT username, email FROM users WHERE username = %s OR email = %s', 
                        (username, email))
         existing_user = cursor.fetchone()
         if existing_user:
+            # `existing_user` is a tuple (username, email) from a regular cursor.
+            try:
+                existing_username = existing_user[0]
+                existing_email = existing_user[1]
+            except Exception:
+                existing_username = None
+                existing_email = None
+
+            conflict_fields = []
+            if existing_username and existing_username == username:
+                conflict_fields.append('username')
+            if existing_email and existing_email == email:
+                conflict_fields.append('email')
+
+            # Close DB resources before logging (logging may use DB too).
             cursor.close()
             conn.close()
+
+            # Log detailed info server-side only (not returned to client).
             log_security_event('REGISTRATION_FAILED', username, 
-                             {'reason': 'User already exists'}, 'warning')
-            return jsonify({'error': 'Username or email already exists'}), 409
+                             {'reason': 'User already exists', 'conflict_fields': conflict_fields}, 'warning')
+            logger.info(f"Registration conflict for '{username}' - conflicts: {conflict_fields}")
+
+            # Decide whether to expose which field(s) conflicted based on an
+            # environment variable. Default is false to avoid account enumeration.
+            expose_conflict = os.getenv('EXPOSE_CONFLICT_FIELD', '0').lower() in ('1', 'true', 'yes')
+
+            if expose_conflict:
+                if len(conflict_fields) == 2:
+                    client_msg = 'Username and email already exist'
+                elif 'username' in conflict_fields:
+                    client_msg = 'Username already exists'
+                elif 'email' in conflict_fields:
+                    client_msg = 'Email already exists'
+                else:
+                    client_msg = 'Username or email already exists'
+            else:
+                # Keep client-facing response generic to avoid leaking account existence.
+                client_msg = 'Username or email already exists'
+
+            return jsonify({'error': client_msg}), 409
         
         # Save face images with quality assessment
         face_paths = []
@@ -878,7 +922,7 @@ def auth_fingerprint():
             
             try:
                 compare_fingerprints(temp_path, 
-                                   dataset_path=os.path.dirname(user['fp_path']), 
+                                   dataset_path=user['fp_path'], 
                                    log_callback=log_callback, 
                                    parallel=True)
             except Exception as e:

@@ -51,3 +51,52 @@
 2025-11-30 02:16:55,038 - __main__ - INFO - Security event: SYSTEM_STARTUP - User: None - IP: system
 2025-11-30 02:16:55,058 - werkzeug - WARNING -  * Debugger is active!
 2025-11-30 02:16:55,070 - werkzeug - INFO -  * Debugger PIN: 630-649-464
+2025-11-30 04:13:10,339 - __main__ - INFO - Database initialized successfully
+2025-11-30 04:13:10,342 - __main__ - INFO - Enhanced Biometric Authentication System starting...
+2025-11-30 04:13:13,173 - __main__ - INFO - Security event: SYSTEM_STARTUP - User: None - IP: system
+2025-11-30 04:13:13,238 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5432
+ * Running on http://192.168.31.101:5432
+2025-11-30 04:13:13,238 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-11-30 04:13:13,241 - werkzeug - INFO -  * Restarting with stat
+2025-11-30 04:13:17,455 - __main__ - INFO - Database initialized successfully
+2025-11-30 04:13:17,456 - __main__ - INFO - Enhanced Biometric Authentication System starting...
+2025-11-30 04:13:19,514 - __main__ - INFO - Security event: SYSTEM_STARTUP - User: None - IP: system
+2025-11-30 04:13:19,534 - werkzeug - WARNING -  * Debugger is active!
+2025-11-30 04:13:19,547 - werkzeug - INFO -  * Debugger PIN: 630-649-464
+2025-11-30 04:37:53,958 - werkzeug - INFO -  * Detected change in 'C:\\xampp\\htdocs\\Major Project\\Backend\\app_enhanced.py', reloading
+2025-11-30 04:37:53,996 - werkzeug - INFO -  * Restarting with stat
+2025-11-30 04:37:58,975 - __main__ - INFO - Database initialized successfully
+2025-11-30 04:37:58,976 - __main__ - INFO - Enhanced Biometric Authentication System starting...
+2025-11-30 04:38:01,185 - __main__ - INFO - Security event: SYSTEM_STARTUP - User: None - IP: system
+2025-11-30 04:38:01,209 - werkzeug - WARNING -  * Debugger is active!
+2025-11-30 04:38:01,219 - werkzeug - INFO -  * Debugger PIN: 630-649-464
+2025-11-30 04:45:35,770 - werkzeug - INFO -  * Detected change in 'C:\\xampp\\htdocs\\Major Project\\Backend\\app_enhanced.py', reloading
+2025-11-30 04:45:35,808 - werkzeug - INFO -  * Restarting with stat
+2025-11-30 04:45:40,072 - __main__ - INFO - Database initialized successfully
+2025-11-30 04:45:40,072 - __main__ - INFO - Enhanced Biometric Authentication System starting...
+2025-11-30 04:45:42,705 - __main__ - INFO - Security event: SYSTEM_STARTUP - User: None - IP: system
+2025-11-30 04:45:42,724 - werkzeug - WARNING -  * Debugger is active!
+2025-11-30 04:45:42,731 - werkzeug - INFO -  * Debugger PIN: 630-649-464
+2025-11-30 04:52:58,008 - werkzeug - INFO -  * Detected change in 'C:\\xampp\\htdocs\\Major Project\\Backend\\app_enhanced.py', reloading
+2025-11-30 04:52:58,047 - werkzeug - INFO -  * Restarting with stat
+2025-11-30 04:53:03,149 - __main__ - INFO - Database initialized successfully
+2025-11-30 04:53:03,150 - __main__ - INFO - Enhanced Biometric Authentication System starting...
+2025-11-30 04:53:05,457 - __main__ - INFO - Security event: SYSTEM_STARTUP - User: None - IP: system
+2025-11-30 04:53:05,479 - werkzeug - WARNING -  * Debugger is active!
+2025-11-30 04:53:05,492 - werkzeug - INFO -  * Debugger PIN: 630-649-464
+2025-11-30 05:01:02,617 - werkzeug - INFO -  * Detected change in 'C:\\xampp\\htdocs\\Major Project\\Backend\\app_enhanced.py', reloading
+2025-11-30 05:01:02,650 - werkzeug - INFO -  * Restarting with stat
+2025-11-30 05:01:08,175 - __main__ - INFO - Database initialized successfully
+2025-11-30 05:01:08,177 - __main__ - INFO - Enhanced Biometric Authentication System starting...
+2025-11-30 05:01:10,432 - __main__ - INFO - Security event: SYSTEM_STARTUP - User: None - IP: system
+2025-11-30 05:01:10,450 - werkzeug - WARNING -  * Debugger is active!
+2025-11-30 05:01:10,458 - werkzeug - INFO -  * Debugger PIN: 630-649-464
+2025-11-30 05:02:11,555 - werkzeug - INFO -  * Detected change in 'C:\\xampp\\htdocs\\Major Project\\Backend\\app_enhanced.py', reloading
+2025-11-30 05:02:11,610 - werkzeug - INFO -  * Restarting with stat
+2025-11-30 05:02:16,994 - __main__ - INFO - Database initialized successfully
+2025-11-30 05:02:16,995 - __main__ - INFO - Enhanced Biometric Authentication System starting...
+2025-11-30 05:02:20,247 - __main__ - INFO - Security event: SYSTEM_STARTUP - User: None - IP: system
+2025-11-30 05:02:20,263 - werkzeug - WARNING -  * Debugger is active!
+2025-11-30 05:02:20,272 - werkzeug - INFO -  * Debugger PIN: 630-649-464
