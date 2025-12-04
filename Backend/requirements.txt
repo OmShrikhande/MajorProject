@@ -88,6 +88,3 @@ pillow
 
 # for blockchain integration
 web3>=5.25.0
-hardhat = 2.22.0
-dotenv = 16.4.5
-
