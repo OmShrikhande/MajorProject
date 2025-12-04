@@ -1,0 +1,138 @@
+{
+  "address": "0x3351337c384B04Ea420005d5E00911B9985dc340",
+  "abi": [
+    {
+      "type": "event",
+      "anonymous": false,
+      "name": "LogRecorded",
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": "logIndex",
+          "indexed": true
+        },
+        {
+          "type": "bytes32",
+          "name": "userIdHash",
+          "indexed": true
+        },
+        {
+          "type": "uint8",
+          "name": "eventType",
+          "indexed": false
+        },
+        {
+          "type": "uint64",
+          "name": "timestamp",
+          "indexed": false
+        },
+        {
+          "type": "bytes32",
+          "name": "metaHash",
+          "indexed": false
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "addLog",
+      "constant": false,
+      "payable": false,
+      "inputs": [
+        {
+          "type": "bytes32",
+          "name": "userIdHash"
+        },
+        {
+          "type": "uint8",
+          "name": "eventType"
+        },
+        {
+          "type": "uint64",
+          "name": "timestamp"
+        },
+        {
+          "type": "bytes32",
+          "name": "metaHash"
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "type": "function",
+      "name": "getLog",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": "index"
+        }
+      ],
+      "outputs": [
+        {
+          "type": "bytes32",
+          "name": ""
+        },
+        {
+          "type": "uint8",
+          "name": ""
+        },
+        {
+          "type": "uint64",
+          "name": ""
+        },
+        {
+          "type": "bytes32",
+          "name": ""
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "logs",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": ""
+        }
+      ],
+      "outputs": [
+        {
+          "type": "bytes32",
+          "name": "userIdHash"
+        },
+        {
+          "type": "uint8",
+          "name": "eventType"
+        },
+        {
+          "type": "uint64",
+          "name": "timestamp"
+        },
+        {
+          "type": "bytes32",
+          "name": "metaHash"
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "totalLogs",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [],
+      "outputs": [
+        {
+          "type": "uint256",
+          "name": ""
+        }
+      ]
+    }
+  ]
+}

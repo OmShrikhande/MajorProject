@@ -1,0 +1,19 @@
+{
+  "name": "biometric-audit-log-blockchain",
+  "version": "1.0.0",
+  "description": "Blockchain-based audit logging for biometric authentication",
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy": "hardhat run scripts/deploy.js",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "node": "hardhat node",
+    "test": "hardhat test",
+    "extract-abi": "node scripts/extract-abi.js"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "dotenv": "^16.4.5",
+    "hardhat": "^2.22.0"
+  }
+}

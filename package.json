@@ -3,6 +3,13 @@
   "version": "1.0.0",
   "main": "vite.config.js",
   "scripts": {
+    "compile": "hardhat compile",
+    "deploy": "hardhat run scripts/deploy.js",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "node": "hardhat node",
+    "test": "hardhat test",
+    "extract-abi": "node scripts/extract-abi.js",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
@@ -36,6 +43,7 @@
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-react": "^4.0.0",
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
     "vite": "^4.4.0"
   },
   "author": "",
