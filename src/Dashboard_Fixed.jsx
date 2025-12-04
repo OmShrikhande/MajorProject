@@ -132,6 +132,7 @@ import {
   ColorLens as ColorLensIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import LogViewer from './LogViewer';
 
 // Styled components with advanced animations and gradients
 const StyledDashboard = styled(Box)(({ theme }) => ({
@@ -358,6 +359,7 @@ export default function Dashboard({ username, onLogout }) {
   const [profileMenuAnchor, setProfileMenuAnchor] = useState(null);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [documentDetailsOpen, setDocumentDetailsOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState('documents');
   const [refreshing, setRefreshing] = useState(false);
 
   const theme = useTheme();
@@ -557,25 +559,46 @@ export default function Dashboard({ username, onLogout }) {
       </Menu>
 
       {/* Main Content */}
-      <Box sx={{ mt: 10, p: 3 }}>
-        <Container maxWidth="xl">
-          {/* Welcome Section */}
-          <Fade in timeout={1000}>
-            <Box sx={{ mb: 4 }}>
-              <Grid container alignItems="center" spacing={3}>
-                <Grid item xs={12} md={8}>
-                  <Box sx={{ animation: `${fadeInUp} 1s ease-out` }}>
-                    <Typography variant="h3" sx={{ mb: 1, fontWeight: 'bold' }}>
-                      Welcome back, {' '}
-                      <GradientText variant="h3" component="span">
-                        {username}
-                      </GradientText>
-                    </Typography>
-                    <Typography variant="h6" color="text.secondary">
-                      Your secure document management center
-                    </Typography>
+            <Box sx={{ mt: 10, p: 3 }}>
+              {currentPage === 'logs' ? (
+                <LogViewer />
+              ) : (
+                <Container maxWidth="xl">
+                  {/* Navigation Tabs */}
+                  <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
+                    <Button
+                      variant={currentPage === 'documents' ? 'contained' : 'outlined'}
+                      onClick={() => setCurrentPage('documents')}
+                      startIcon={<FileIcon />}
+                    >
+                      Documents
+                    </Button>
+                    <Button
+                      variant={currentPage === 'logs' ? 'contained' : 'outlined'}
+                      onClick={() => setCurrentPage('logs')}
+                      startIcon={<HistoryIcon />}
+                    >
+                      Audit Logs
+                    </Button>
                   </Box>
-                </Grid>
+      
+                  {/* Welcome Section */}
+                  <Fade in timeout={1000}>
+                    <Box sx={{ mb: 4 }}>
+                      <Grid container alignItems="center" spacing={3}>
+                        <Grid item xs={12} md={8}>
+                          <Box sx={{ animation: `${fadeInUp} 1s ease-out` }}>
+                            <Typography variant="h3" sx={{ mb: 1, fontWeight: 'bold' }}>
+                              Welcome back, {' '}
+                              <GradientText variant="h3" component="span">
+                                {username}
+                              </GradientText>
+                            </Typography>
+                            <Typography variant="h6" color="text.secondary">
+                              Your secure document management center
+                            </Typography>
+                          </Box>
+                        </Grid>
                 <Grid item xs={12} md={4}>
                   <Box sx={{ 
                     display: 'flex', 
@@ -950,6 +973,7 @@ export default function Dashboard({ username, onLogout }) {
             </GlowingCard>
           </Slide>
         </Container>
+        )}
       </Box>
 
       {/* Document Details Modal */}
