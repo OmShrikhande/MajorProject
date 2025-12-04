@@ -85,6 +85,3 @@ lz4==4.4.4
 networkx==3.4.2
 tifffile==2025.5.10
 pillow
-
-# for blockchain integration
-web3>=5.25.0
