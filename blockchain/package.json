@@ -2,17 +2,23 @@
   "name": "biometric-audit-log-blockchain",
   "version": "1.0.0",
   "description": "Blockchain-based audit logging for biometric authentication",
+  "type": "commonjs",
   "main": "server.js",
+  "engines": {
+    "node": "18.x || 20.x || 22.x"
+  },
   "scripts": {
+    "prestart": "echo 'Starting Blockchain Audit API Server...'",
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "echo 'Build not required for Node.js API'",
     "compile": "hardhat compile",
     "deploy": "hardhat run scripts/deploy.js",
     "deploy:local": "hardhat run scripts/deploy.js --network localhost",
     "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
     "node": "hardhat node",
     "test": "hardhat test",
-    "extract-abi": "node scripts/extract-abi.js",
-    "start": "node server.js",
-    "dev": "node server.js"
+    "extract-abi": "node scripts/extract-abi.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -23,5 +29,12 @@
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",
     "hardhat": "^2.22.0"
-  }
+  },
+  "keywords": [
+    "blockchain",
+    "audit-log",
+    "ethereum",
+    "express",
+    "api"
+  ]
 }

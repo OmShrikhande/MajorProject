@@ -6,10 +6,24 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = parseInt(process.env.PORT || '5000', 10);
+
+const parseCorsOrigin = () => {
+  const frontendUrl = process.env.FRONTEND_URL;
+  
+  if (!frontendUrl || frontendUrl === '*') {
+    return true;
+  }
+  
+  if (frontendUrl.includes(',')) {
+    return frontendUrl.split(',').map(url => url.trim());
+  }
+  
+  return frontendUrl;
+};
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:5173', 'https://majorpr.netlify.app/'],
+  origin: parseCorsOrigin(),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -174,24 +188,38 @@ app.use((err, req, res, next) => {
 });
 
 const start = async () => {
+  console.log('🚀 Starting Blockchain Audit Log API Server...');
+  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔗 RPC URL: ${RPC_URL}`);
+  
   await initializeBlockchain();
   
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`
-╔═══════════════════════════════════════════╗
-║  Blockchain Audit Log API Server          ║
-╠═══════════════════════════════════════════╣
-║  Server running on port ${PORT}           
-║  Health: GET /api/health                  ║
-║  Logs: GET /api/logs                      ║
-║  Verify: GET /api/logs/:index/verify      ║
-║  Stats: GET /api/stats                    ║
-╚═══════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════╗
+║     Blockchain Audit Log API Server Active        ║
+╠═══════════════════════════════════════════════════╣
+║  🟢 Server running on port ${PORT.toString().padEnd(30)}║
+║  📊 Health: GET /api/health                       ║
+║  📝 Logs: GET /api/logs                           ║
+║  ✅ Verify: GET /api/logs/:index/verify           ║
+║  📈 Stats: GET /api/stats                         ║
+╚═══════════════════════════════════════════════════╝
     `);
   });
 };
 
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  process.exit(1);
+});
+
 start().catch(error => {
-  console.error('Failed to start server:', error);
+  console.error('❌ Failed to start server:', error.message);
+  console.error(error.stack);
   process.exit(1);
 });

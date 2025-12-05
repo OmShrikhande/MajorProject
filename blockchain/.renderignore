@@ -1,0 +1,20 @@
+# Ignore frontend build artifacts and configs
+../src/
+../dist/
+../vite.config.js
+../index.html
+../node_modules/
+
+# Ignore other blockchain parts not needed for API
+../contracts/
+../scripts/
+../hardhat.config.js
+test/
+tests/
+
+# Git and dev files
+.git
+.gitignore
+README.md
+DEPLOYMENT_GUIDE.md
+FIXES_APPLIED.md
