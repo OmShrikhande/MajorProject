@@ -2,8 +2,8 @@ services:
   - type: web
     name: blockchain-audit-api
     runtime: node
-    buildCommand: npm install
-    startCommand: node server.js
+    buildCommand: "npm install --production"
+    startCommand: "npm start"
     plan: free
     envVars:
       - key: NODE_ENV
