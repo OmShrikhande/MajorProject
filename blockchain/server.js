@@ -83,13 +83,33 @@ const initializeBlockchain = async () => {
 };
 
 const getEventTypeString = (eventTypeNum) => {
+  const num = typeof eventTypeNum === 'bigint' ? Number(eventTypeNum) : parseInt(eventTypeNum);
   const eventTypes = {
     0: 'ENROLL',
     1: 'AUTH_SUCCESS',
     2: 'AUTH_FAIL',
     3: 'ADMIN_ACTION'
   };
-  return eventTypes[eventTypeNum] || 'UNKNOWN';
+  return eventTypes[num] || 'UNKNOWN';
+};
+
+const toBigInt = (val) => {
+  if (typeof val === 'bigint') return val;
+  if (typeof val === 'string') return BigInt(val);
+  return BigInt(val.toString());
+};
+
+const toNumber = (val) => {
+  if (typeof val === 'bigint') return Number(val);
+  if (typeof val === 'string') return parseInt(val, 10);
+  return Number(val);
+};
+
+const toHex = (val) => {
+  if (typeof val === 'string' && val.startsWith('0x')) return val;
+  if (typeof val === 'string') return '0x' + val;
+  if (typeof val === 'object' && val.toString) return val.toString();
+  return val;
 };
 
 app.get('/api/logs', async (req, res) => {
@@ -110,26 +130,40 @@ app.get('/api/logs', async (req, res) => {
 
     console.log(`📊 Fetching logs: page=${page}, perPage=${perPage}`);
     
-    const totalLogs = await contract.methods.totalLogs().call();
-    console.log(`✓ Total logs: ${totalLogs}`);
+    const totalLogsRaw = await contract.methods.totalLogs().call();
+    const totalLogs = toNumber(totalLogsRaw);
+    console.log(`✓ Total logs: ${totalLogs} (type: ${typeof totalLogsRaw})`);
     
-    const totalPages = Math.ceil(parseInt(totalLogs) / perPage);
+    const totalPages = Math.ceil(totalLogs / perPage);
 
-    const startIndex = Math.max(0, parseInt(totalLogs) - page * perPage);
-    const endIndex = Math.max(0, parseInt(totalLogs) - (page - 1) * perPage);
+    const startIndex = Math.max(0, totalLogs - page * perPage);
+    const endIndex = Math.max(0, totalLogs - (page - 1) * perPage);
 
-    console.log(`🔄 Fetching entries from ${startIndex} to ${endIndex}`);
+    console.log(`🔄 Fetching entries from index ${startIndex} to ${endIndex}`);
 
     const logs = [];
     for (let i = startIndex; i < endIndex; i++) {
-      const entry = await contract.methods.getLog(i).call();
-      logs.push({
-        index: i,
-        userIdHash: entry[0],
-        eventType: getEventTypeString(entry[1]),
-        timestamp: parseInt(entry[2]),
-        metaHash: entry[3]
-      });
+      try {
+        const entry = await contract.methods.getLog(i).call();
+        
+        const log = {
+          index: i,
+          userIdHash: toHex(entry[0]),
+          eventType: getEventTypeString(entry[1]),
+          timestamp: toNumber(entry[2]),
+          metaHash: toHex(entry[3]),
+          raw: {
+            eventTypeRaw: entry[1].toString(),
+            timestampRaw: entry[2].toString()
+          }
+        };
+        
+        logs.push(log);
+        console.log(`  ✓ Log ${i}: ${log.eventType} at ${new Date(log.timestamp * 1000).toISOString()}`);
+      } catch (err) {
+        console.error(`  ❌ Error fetching log ${i}:`, err.message);
+        throw err;
+      }
     }
 
     logs.reverse();
@@ -140,7 +174,7 @@ app.get('/api/logs', async (req, res) => {
       logs,
       page,
       per_page: perPage,
-      total: parseInt(totalLogs),
+      total: totalLogs,
       pages: totalPages
     });
   } catch (error) {
@@ -162,26 +196,32 @@ app.get('/api/logs/:index/verify', async (req, res) => {
       return res.status(503).json({ error: 'Blockchain not initialized' });
     }
 
+    console.log(`🔍 Verifying log at index ${index}`);
+    
     const entry = await contract.methods.getLog(index).call();
     
-    if (!entry) {
+    if (!entry || !entry[0]) {
       return res.status(404).json({ success: false, error: 'Log entry not found' });
     }
 
-    res.json({
+    const verified = {
       success: true,
       verified: true,
       data: {
-        index,
-        userIdHash: entry[0],
+        index: toNumber(index),
+        userIdHash: toHex(entry[0]),
         eventType: getEventTypeString(entry[1]),
-        timestamp: parseInt(entry[2]),
-        metaHash: entry[3]
+        timestamp: toNumber(entry[2]),
+        metaHash: toHex(entry[3]),
+        formattedTime: new Date(toNumber(entry[2]) * 1000).toISOString()
       },
       message: 'Log entry verified successfully on blockchain'
-    });
+    };
+    
+    console.log(`✅ Verification successful for log ${index}`);
+    res.json(verified);
   } catch (error) {
-    console.error('Error verifying log:', error);
+    console.error('❌ Error verifying log:', error.message);
     res.status(500).json({
       success: false,
       verified: false,
@@ -230,14 +270,17 @@ app.get('/api/stats', async (req, res) => {
       return res.status(503).json({ error: 'Blockchain not initialized' });
     }
 
-    const totalLogs = await contract.methods.totalLogs().call();
+    const totalLogsRaw = await contract.methods.totalLogs().call();
+    const totalLogs = toNumber(totalLogsRaw);
+    
+    console.log(`📈 Stats: ${totalLogs} total logs on blockchain`);
     
     res.json({
-      totalLogs: parseInt(totalLogs),
+      totalLogs,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching stats:', error);
+    console.error('❌ Error fetching stats:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
