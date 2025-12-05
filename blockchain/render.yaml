@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: blockchain-audit-api
+    runtime: node
+    buildCommand: "npm ci --production && npm run build"
+    startCommand: "node --no-deprecation server.js"
+    plan: free
+    preDeployCommand: "echo 'Starting Blockchain Audit API deployment'"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: BLOCKCHAIN_RPC_URL
+        sync: false
+      - key: BLOCKCHAIN_CONTRACT_ADDRESS
+        sync: false
+      - key: FRONTEND_URL
+        value: "*"
+      - key: NPM_PRODUCTION
+        value: "true"
+    healthCheckPath: /api/health
+    healthCheckTimeout: 30
+    autoDeploy: true
+    branch: main

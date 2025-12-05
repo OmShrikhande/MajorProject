@@ -71,6 +71,17 @@ export default function LogViewer() {
   const [copied, setCopied] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
 
+  const getApiUrl = () => {
+    const blockchainApi = import.meta.env.VITE_BLOCKCHAIN_API;
+    const apiUrl = import.meta.env.VITE_API_URL;
+    
+    if (blockchainApi) return blockchainApi;
+    if (apiUrl) return apiUrl + '/api';
+    return '/api';
+  };
+
+  const apiBaseUrl = getApiUrl();
+
   useEffect(() => {
     fetchLogs();
   }, [page, perPage]);
@@ -79,9 +90,8 @@ export default function LogViewer() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(
-        `/api/logs?page=${page}&per_page=${perPage}`
-      );
+      const url = `${apiBaseUrl}/logs?page=${page}&per_page=${perPage}`;
+      const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch logs');
       const data = await response.json();
       setLogs(data.logs || []);
@@ -98,7 +108,8 @@ export default function LogViewer() {
     setVerifying(true);
     setVerificationResult(null);
     try {
-      const response = await fetch(`/api/logs/${logIndex}/verify`);
+      const url = `${apiBaseUrl}/logs/${logIndex}/verify`;
+      const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to verify log');
       const data = await response.json();
       setVerificationResult(data);

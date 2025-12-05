@@ -16,7 +16,7 @@ module.exports = {
       chainId: 31337,
     },
     localhost: {
-      url: "http://127.0.0.1:8545",
+      url: "https://majorpr.netlify.app",
     },
     sepolia: {
       url: process.env.SEPOLIA_RPC_URL || "",
