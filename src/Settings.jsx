@@ -75,6 +75,34 @@ import axios from 'axios';
 export default function Settings({ open, onClose, settings, onSettingsChange, username }) {
   const [localSettings, setLocalSettings] = useState(settings);
   const [hasChanges, setHasChanges] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const getApiUrl = () => {
+    return import.meta.env.VITE_API_URL || 'https://majorproject-itcj.onrender.com';
+  };
+
+  React.useEffect(() => {
+    if (open) {
+      fetchSettings();
+    }
+  }, [open]);
+
+  const fetchSettings = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const baseUrl = getApiUrl();
+      const res = await axios.get(`${baseUrl}/api/user/settings?username=${encodeURIComponent(username)}`);
+      setLocalSettings(res.data || settings);
+    } catch (err) {
+      console.error('Error fetching settings:', err);
+      setError('Failed to load settings');
+      setLocalSettings(settings);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSettingChange = (key, value) => {
     setLocalSettings(prev => ({
@@ -84,18 +112,21 @@ export default function Settings({ open, onClose, settings, onSettingsChange, us
     setHasChanges(true);
   };
 
-  const handleSave = () => {
-    onSettingsChange(localSettings);
-    // persist to backend
-    axios.put('/api/user/settings', { username, settings: localSettings })
-      .then(() => {
-        setHasChanges(false);
-        onClose();
-      })
-      .catch(() => {
-        setHasChanges(false);
-        onClose();
-      });
+  const handleSave = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const baseUrl = getApiUrl();
+      await axios.put(`${baseUrl}/api/user/settings`, { username, settings: localSettings });
+      onSettingsChange(localSettings);
+      setHasChanges(false);
+      onClose();
+    } catch (err) {
+      console.error('Error saving settings:', err);
+      setError('Failed to save settings');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleReset = () => {
@@ -453,37 +484,52 @@ export default function Settings({ open, onClose, settings, onSettingsChange, us
           {hasChanges && (
             <Chip label="Unsaved Changes" color="warning" size="small" />
           )}
+          {loading && (
+            <Chip label="Loading..." color="info" size="small" />
+          )}
         </Box>
       </DialogTitle>
 
       <DialogContent dividers>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
+        
         <Box sx={{ mb: 2 }}>
-          <SecuritySettings />
-          <BiometricSettings />
-          <AppearanceSettings />
-          <NotificationSettings />
-          <AdvancedSettings />
+          {loading ? (
+            <Typography>Loading settings...</Typography>
+          ) : (
+            <>
+              <SecuritySettings />
+              <BiometricSettings />
+              <AppearanceSettings />
+              <NotificationSettings />
+              <AdvancedSettings />
+            </>
+          )}
         </Box>
       </DialogContent>
 
       <DialogActions>
         <Button
           onClick={handleReset}
-          disabled={!hasChanges}
+          disabled={!hasChanges || loading}
           startIcon={<RestartAltIcon />}
         >
           Reset
         </Button>
-        <Button onClick={onClose}>
+        <Button onClick={onClose} disabled={loading}>
           Cancel
         </Button>
         <Button
           onClick={handleSave}
           variant="contained"
-          disabled={!hasChanges}
+          disabled={!hasChanges || loading}
           startIcon={<SaveIcon />}
         >
-          Save Settings
+          {loading ? 'Saving...' : 'Save Settings'}
         </Button>
       </DialogActions>
     </Dialog>

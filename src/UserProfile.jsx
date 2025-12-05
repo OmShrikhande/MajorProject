@@ -77,27 +77,59 @@ export default function UserProfile({
     createdAt: '',
     updatedAt: ''
   });
+  const [userStats, setUserStats] = useState(null);
+  const [biometricStats, setBiometricStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [biometricUpdateOpen, setBiometricUpdateOpen] = useState(false);
 
-  const userStats = {
-    joinDate: '2024-01-15',
-    lastLogin: new Date().toISOString(),
-    totalLogins: 247,
-    successRate: 96.8,
-    averageSessionTime: '45 min',
-    preferredDevice: 'Desktop',
-    registeredBiometrics: ['Face', 'Fingerprint']
+  const getApiUrl = () => {
+    return import.meta.env.VITE_API_URL || 'https://majorproject-itcj.onrender.com';
   };
 
   useEffect(() => {
-    (async () => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        const res = await axios.get(`/api/user/profile?username=${encodeURIComponent(username)}`);
-        setProfile(res.data);
-        setEditData({ email: res.data.email || '', phoneNumber: res.data.phoneNumber || '' });
-      } catch {}
-    })();
+        const baseUrl = getApiUrl();
+        const [profileRes, statsRes, biometricsRes] = await Promise.all([
+          axios.get(`${baseUrl}/api/user/profile?username=${encodeURIComponent(username)}`),
+          axios.get(`${baseUrl}/api/user/stats?username=${encodeURIComponent(username)}`),
+          axios.get(`${baseUrl}/api/user/biometrics?username=${encodeURIComponent(username)}`)
+        ]);
+
+        setProfile(profileRes.data);
+        setEditData({ 
+          email: profileRes.data.email || '', 
+          phoneNumber: profileRes.data.phoneNumber || '' 
+        });
+        
+        setUserStats(statsRes.data || {});
+        setBiometricStats(biometricsRes.data || {});
+      } catch (err) {
+        console.error('Error fetching profile data:', err);
+        setError('Failed to load profile data');
+        setUserStats({
+          totalLogins: 0,
+          successRate: 0,
+          averageSessionTime: 'N/A',
+          preferredDevice: 'N/A',
+          lastLogin: new Date().toISOString()
+        });
+        setBiometricStats({
+          face: 0,
+          fingerprint: 0
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (username) {
+      fetchData();
+    }
   }, [username]);
 
   const handleSaveProfile = async () => {
@@ -157,7 +189,7 @@ export default function UserProfile({
               />
             </Box>
             <Typography variant="body2" color="textSecondary">
-              Member since {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : new Date(userStats.joinDate).toLocaleDateString()}
+              Member since {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}
             </Typography>
           </Box>
 
@@ -256,7 +288,11 @@ export default function UserProfile({
     </Card>
   );
 
-  const BiometricStatus = () => (
+  const BiometricStatus = () => {
+    const faceQuality = (biometricStats?.face || 0) * 100;
+    const fingerprintQuality = (biometricStats?.fingerprint || 0) * 100;
+
+    return (
     <Card sx={{ mb: 3 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
@@ -269,15 +305,19 @@ export default function UserProfile({
               <Box display="flex" alignItems="center" gap={1} mb={1}>
                 <FaceIcon color="primary" />
                 <Typography variant="subtitle2">Face Recognition</Typography>
-                <Chip label="Active" color="success" size="small" />
+                <Chip 
+                  label={faceQuality > 0 ? "Active" : "Inactive"} 
+                  color={faceQuality > 0 ? "success" : "default"} 
+                  size="small" 
+                />
               </Box>
               <LinearProgress 
                 variant="determinate" 
-                value={(biometricQuality?.face || 0.85) * 100}
+                value={Math.min(faceQuality, 100)}
                 sx={{ height: 8, borderRadius: 4 }}
               />
               <Typography variant="caption" color="textSecondary">
-                Quality: {((biometricQuality?.face || 0.85) * 100).toFixed(1)}%
+                Quality: {faceQuality > 0 ? faceQuality.toFixed(1) : 'N/A'}%
               </Typography>
             </Box>
           </Grid>
@@ -287,16 +327,20 @@ export default function UserProfile({
               <Box display="flex" alignItems="center" gap={1} mb={1}>
                 <FingerprintIcon color="secondary" />
                 <Typography variant="subtitle2">Fingerprint</Typography>
-                <Chip label="Active" color="success" size="small" />
+                <Chip 
+                  label={fingerprintQuality > 0 ? "Active" : "Inactive"} 
+                  color={fingerprintQuality > 0 ? "success" : "default"} 
+                  size="small" 
+                />
               </Box>
               <LinearProgress 
                 variant="determinate" 
-                value={(biometricQuality?.fingerprint || 0.92) * 100}
+                value={Math.min(fingerprintQuality, 100)}
                 color="secondary"
                 sx={{ height: 8, borderRadius: 4 }}
               />
               <Typography variant="caption" color="textSecondary">
-                Quality: {((biometricQuality?.fingerprint || 0.92) * 100).toFixed(1)}%
+                Quality: {fingerprintQuality > 0 ? fingerprintQuality.toFixed(1) : 'N/A'}%
               </Typography>
             </Box>
           </Grid>
@@ -320,9 +364,13 @@ export default function UserProfile({
         </Box>
       </CardContent>
     </Card>
-  );
+    );
+  };
 
-  const AccountStatistics = () => (
+  const AccountStatistics = () => {
+    if (!userStats) return <Card sx={{ mb: 3 }}><CardContent><Typography>Loading statistics...</Typography></CardContent></Card>;
+
+    return (
     <Card sx={{ mb: 3 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
@@ -333,7 +381,7 @@ export default function UserProfile({
           <Grid item xs={6} md={3}>
             <Box textAlign="center">
               <Typography variant="h4" color="primary">
-                {userStats.totalLogins}
+                {userStats.totalLogins || 0}
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 Total Logins
@@ -344,7 +392,7 @@ export default function UserProfile({
           <Grid item xs={6} md={3}>
             <Box textAlign="center">
               <Typography variant="h4" color="success.main">
-                {userStats.successRate}%
+                {(userStats.successRate || 0).toFixed(1)}%
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 Success Rate
@@ -355,7 +403,7 @@ export default function UserProfile({
           <Grid item xs={6} md={3}>
             <Box textAlign="center">
               <Typography variant="h4" color="info.main">
-                {userStats.averageSessionTime}
+                {userStats.averageSessionTime || 'N/A'}
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 Avg Session
@@ -366,7 +414,7 @@ export default function UserProfile({
           <Grid item xs={6} md={3}>
             <Box textAlign="center">
               <Typography variant="h4" color="secondary.main">
-                {userStats.preferredDevice}
+                {userStats.preferredDevice || 'N/A'}
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 Preferred Device
@@ -376,7 +424,8 @@ export default function UserProfile({
         </Grid>
       </CardContent>
     </Card>
-  );
+    );
+  };
 
   const SecuritySettings = () => (
     <Card>
@@ -425,8 +474,25 @@ export default function UserProfile({
     </Card>
   );
 
+  if (loading) {
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <Typography variant="h4" gutterBottom>
+          User Profile
+        </Typography>
+        <Card><CardContent><Typography>Loading profile...</Typography></CardContent></Card>
+      </Container>
+    );
+  }
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+      
       <Typography variant="h4" gutterBottom>
         User Profile
       </Typography>
