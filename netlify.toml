@@ -11,6 +11,12 @@ ignore = "git diff --quiet HEAD^ HEAD Backend/"
   PYTHON_VERSION = "3.10.12"
 
 [[redirects]]
+  from = "/api/*"
+  to = "https://majorproject-cjno.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

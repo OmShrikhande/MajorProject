@@ -16,6 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 import uuid
 import base64
 import hmac
+import requests
 from typing import Dict, List, Optional, Tuple
 from dotenv import load_dotenv
 import psycopg2
@@ -438,6 +439,73 @@ def log_security_event(event_type: str, username: str = None, details: dict = No
     except Exception as e:
         logger.error(f"Failed to log security event: {e}")
 
+def anchor_event_to_blockchain(event_type: str, username: str, event_details: dict = None) -> bool:
+    """Anchor security event to blockchain via separate Node.js server"""
+    try:
+        blockchain_api_url = os.getenv('BLOCKCHAIN_API_URL', 'http://localhost:5000')
+        
+        if not blockchain_api_url:
+            logger.warning("BLOCKCHAIN_API_URL not configured. Skipping blockchain anchoring.")
+            return False
+        
+        if not username:
+            logger.warning("Username required for blockchain anchoring")
+            return False
+        
+        event_type_map = {
+            'USER_REGISTERED': 0,
+            'FACE_AUTH_SUCCESS': 1,
+            'FACE_AUTH_FAILED': 2,
+            'FINGERPRINT_AUTH_SUCCESS': 1,
+            'FINGERPRINT_AUTH_FAILED': 2,
+            'AUTH_SUCCESS': 1,
+            'AUTH_FAIL': 2,
+            'ADMIN_ACTION': 3,
+            'ENROLL': 0
+        }
+        
+        event_type_num = event_type_map.get(event_type, 3)
+        
+        user_id_hash = hashlib.sha256(username.encode()).hexdigest()
+        timestamp = int(time.time())
+        
+        details_str = json.dumps(event_details) if event_details else "{}"
+        meta_hash = hashlib.sha256(details_str.encode()).hexdigest()
+        
+        payload = {
+            'userIdHash': '0x' + user_id_hash,
+            'eventType': event_type_num,
+            'timestamp': timestamp,
+            'metaHash': '0x' + meta_hash
+        }
+        
+        endpoint = f"{blockchain_api_url}/api/anchor-event"
+        
+        logger.info(f"🔗 Anchoring event to blockchain: {event_type} for user {username}")
+        logger.debug(f"Payload: {payload}")
+        
+        response = requests.post(
+            endpoint,
+            json=payload,
+            timeout=10,
+            headers={'Content-Type': 'application/json'}
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            logger.info(f"✅ Event anchored to blockchain: txHash={result.get('transactionHash', 'pending')}")
+            return True
+        else:
+            logger.error(f"❌ Blockchain anchoring failed: {response.status_code} - {response.text}")
+            return False
+            
+    except requests.exceptions.RequestException as e:
+        logger.error(f"❌ Blockchain connection error: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Error anchoring event to blockchain: {e}")
+        return False
+
 def check_rate_limit(username: str, attempt_type: str) -> bool:
     """Check if user has exceeded rate limits"""
     current_time = time.time()
@@ -748,6 +816,15 @@ def register():
                 'registration_time': time.time() - start_time
             }, 'info')
             
+            executor.submit(anchor_event_to_blockchain, 'ENROLL', username, {
+                'email': email,
+                'security_level': security_level,
+                'biometric_quality': {
+                    'face': avg_face_quality,
+                    'fingerprint': fp_quality
+                }
+            })
+            
             logger.info(f"User {username} registered successfully with {security_level} security")
             
             return jsonify({
@@ -881,6 +958,12 @@ def auth_face():
                     'quality': submitted_quality
                 }, 'info')
                 
+                executor.submit(anchor_event_to_blockchain, 'AUTH_SUCCESS', username, {
+                    'auth_type': 'face',
+                    'confidence': best_confidence,
+                    'response_time': response_time
+                })
+                
                 return jsonify({
                     'success': True,
                     'confidence': best_confidence,
@@ -900,6 +983,12 @@ def auth_face():
                     'required': min_quality * 100,
                     'response_time': response_time
                 }, 'warning')
+                
+                executor.submit(anchor_event_to_blockchain, 'AUTH_FAIL', username, {
+                    'auth_type': 'face',
+                    'confidence': best_confidence,
+                    'required': min_quality * 100
+                })
                 
                 return jsonify({
                     'success': False,
@@ -1051,6 +1140,12 @@ def auth_fingerprint():
                     'session_id': session_id
                 }, 'info')
                 
+                executor.submit(anchor_event_to_blockchain, 'AUTH_SUCCESS', username, {
+                    'auth_type': 'fingerprint',
+                    'score': match_result['score'],
+                    'response_time': response_time
+                })
+                
                 return jsonify({
                     'success': True,
                     'score': match_result['score'],
@@ -1073,6 +1168,12 @@ def auth_fingerprint():
                     'required': min_quality,
                     'response_time': response_time
                 }, 'warning')
+                
+                executor.submit(anchor_event_to_blockchain, 'AUTH_FAIL', username, {
+                    'auth_type': 'fingerprint',
+                    'score': match_result['score'],
+                    'required': min_quality
+                })
                 
                 return jsonify({
                     'success': False,

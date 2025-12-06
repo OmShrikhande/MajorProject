@@ -285,6 +285,79 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
+app.post('/api/anchor-event', async (req, res) => {
+  try {
+    if (!contract) {
+      return res.status(503).json({ error: 'Blockchain not initialized' });
+    }
+
+    const { userIdHash, eventType, timestamp, metaHash } = req.body;
+
+    if (!userIdHash || eventType === undefined || !timestamp || !metaHash) {
+      return res.status(400).json({ 
+        error: 'Missing required fields',
+        required: ['userIdHash', 'eventType', 'timestamp', 'metaHash']
+      });
+    }
+
+    console.log(`📝 Anchoring event: type=${eventType}, user=${userIdHash.substring(0, 10)}..., ts=${timestamp}`);
+
+    const PRIVATE_KEY = process.env.BLOCKCHAIN_PRIVATE_KEY;
+    if (!PRIVATE_KEY) {
+      return res.status(503).json({ 
+        error: 'Blockchain signer not configured',
+        detail: 'BLOCKCHAIN_PRIVATE_KEY environment variable not set'
+      });
+    }
+
+    const account = web3.eth.accounts.privateKeyToAccount(PRIVATE_KEY);
+    web3.eth.accounts.wallet.add(account);
+
+    const tx = contract.methods.addLog(userIdHash, eventType, timestamp, metaHash);
+    const gas = await tx.estimateGas({ from: account.address });
+
+    console.log(`⛽ Estimated gas: ${gas}`);
+
+    const txData = tx.encodeABI();
+    const nonce = await web3.eth.getTransactionCount(account.address);
+
+    const rawTx = {
+      from: account.address,
+      to: CONTRACT_ADDRESS,
+      data: txData,
+      gas: Math.ceil(gas * 1.2),
+      gasPrice: await web3.eth.getGasPrice(),
+      nonce: nonce,
+      chainId: 11155111
+    };
+
+    console.log(`🔐 Signing transaction from ${account.address}...`);
+    const signedTx = await web3.eth.accounts.signTransaction(rawTx, PRIVATE_KEY);
+
+    console.log(`📤 Sending transaction...`);
+    const receipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+
+    console.log(`✅ Event anchored! TxHash: ${receipt.transactionHash}`);
+
+    res.json({
+      success: true,
+      transactionHash: receipt.transactionHash,
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed,
+      message: 'Event successfully anchored to blockchain'
+    });
+
+  } catch (error) {
+    console.error('❌ Error anchoring event:', error.message);
+    console.error('Stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      type: error.constructor.name
+    });
+  }
+});
+
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Internal server error' });
@@ -307,6 +380,7 @@ const start = async () => {
 ║  📝 Logs: GET /api/logs                           ║
 ║  ✅ Verify: GET /api/logs/:index/verify           ║
 ║  📈 Stats: GET /api/stats                         ║
+║  ⛓️  Anchor: POST /api/anchor-event               ║
 ╚═══════════════════════════════════════════════════╝
     `);
   });
